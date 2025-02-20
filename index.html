@@ -34,9 +34,10 @@
         const powerupImg = new Image();
         powerupImg.src = 'powerup.png';
         const shootSound = new Audio('shoot.wav');
+        shootSound.volume = 0.5;
         const backgroundMusic = new Audio('music.mp3');
         backgroundMusic.loop = true;
-        backgroundMusic.volume = 0.9;
+        backgroundMusic.volume = 1.9;
         backgroundMusic.play();
 
         // Game objects
