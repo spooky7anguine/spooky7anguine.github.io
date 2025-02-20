@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dave just wanna make money you crybabies</title>
+    <style>
+        canvas { 
+            border: 1px solid black; 
+            background: black;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Load assets
+     	const heroImg = new Image();
+        heroImg.src = 'hero.png';
+        const enemyImg = new Image();
+        enemyImg.src = 'enemy.png';
+        const powerupImg = new Image();
+        powerupImg.src = 'powerup.png';
+        const shootSound = new Audio('shoot.wav');
+        const backgroundMusic = new Audio('music.mp3');
+        backgroundMusic.loop = true;
+        backgroundMusic.volume = 0.9;
+        backgroundMusic.play();
+
+        // Game objects
+        let player = {
+            x: 400,
+            y: 300,
+            angle: 0,
+            speed: 0,
+            bulletsPerShot: 1
+        };
+        let bullets = [];
+        let enemies = [];
+        let powerups = [];
+        let score = 0;
+        let gameOver = false;
+        let gameWon = false;
+
+        // Controls
+        let keys = {};
+        document.addEventListener('keydown', (e) => keys[e.key] = true);
+        document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        function spawnEnemy() {
+            const angle = Math.random() * Math.PI * 2;
+            enemies.push({
+                x: Math.cos(angle) * 500 + 400,
+                y: Math.sin(angle) * 500 + 300,
+                speedX: (Math.random() - 0.5) * 2,
+                speedY: (Math.random() - 0.5) * 2
+            });
+        }
+
+        function spawnPowerup() {
+            powerups.push({
+                x: Math.random() * 800,
+                y: Math.random() * 600
+            });
+        }
+
+        function update() {
+            if (gameOver || gameWon) {
+                if (keys['r']) location.reload();
+                return;
+            }
+
+            // Player movement
+            if (keys['ArrowLeft']) player.angle -= 0.1;
+            if (keys['ArrowRight']) player.angle += 0.1;
+            if (keys['ArrowUp']) {
+                player.speed = 3;
+            } else {
+                player.speed = 0;
+            }
+            player.x += Math.cos(player.angle) * player.speed;
+            player.y += Math.sin(player.angle) * player.speed;
+
+            // Wrap around
+            if (player.x < 0) player.x = 800;
+            if (player.x > 800) player.x = 0;
+            if (player.y < 0) player.y = 600;
+            if (player.y > 600) player.y = 0;
+
+            // Shooting
+            if (keys[' ']) {
+                if (!player.lastShot || Date.now() - player.lastShot > 200) {
+                    for (let i = 0; i < player.bulletsPerShot; i++) {
+                        bullets.push({
+                            x: player.x,
+                            y: player.y,
+                            speedX: Math.cos(player.angle + (i - (player.bulletsPerShot - 1) / 2) * 0.2) * 5,
+                            speedY: Math.sin(player.angle + (i - (player.bulletsPerShot - 1) / 2) * 0.2) * 5
+                        });
+                    }
+                    shootSound.play();
+                    player.lastShot = Date.now();
+                }
+            }
+
+            // Update bullets
+            bullets.forEach(b => {
+                b.x += b.speedX;
+                b.y += b.speedY;
+            });
+            bullets = bullets.filter(b => b.x >= 0 && b.x <= 800 && b.y >= 0 && b.y <= 600);
+
+            // Update enemies
+            enemies.forEach(e => {
+                e.x += e.speedX;
+                e.y += e.speedY;
+                if (e.x < 0 || e.x > 800) e.speedX *= -1;
+                if (e.y < 0 || e.y > 600) e.speedY *= -1;
+            });
+
+            // Update powerups
+            powerups.forEach(p => {
+                // Check powerup collision
+                if (Math.hypot(p.x - player.x, p.y - player.y) < 30) {
+                    player.bulletsPerShot++;
+                    powerups = powerups.filter(power => power !== p);
+                }
+            });
+
+            // Collision detection
+            bullets.forEach(b => {
+                enemies.forEach(e => {
+                    if (Math.hypot(b.x - e.x, b.y - e.y) < 20) {
+                        score += 10000000;
+                        enemies = enemies.filter(enemy => enemy !== e);
+                        bullets = bullets.filter(bullet => bullet !== b);
+                        if (score >= 1000000000) gameWon = true;
+                    }
+                });
+            });
+
+            enemies.forEach(e => {
+                if (Math.hypot(e.x - player.x, e.y - player.y) < 30) {
+                    gameOver = true;
+                }
+            });
+
+            // Spawn enemies and powerups
+            if (Math.random() < 0.02) spawnEnemy();
+            if (Math.random() < 0.005) spawnPowerup();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, 800, 600);
+
+            // Draw player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+            ctx.drawImage(heroImg, -15, -15, 30, 30);
+            ctx.restore();
+
+            // Draw bullets
+            ctx.fillStyle = 'white';
+            bullets.forEach(b => ctx.fillRect(b.x - 2, b.y - 2, 4, 4));
+
+            // Draw enemies
+            enemies.forEach(e => ctx.drawImage(enemyImg, e.x - 15, e.y - 15, 30, 30));
+
+            // Draw powerups
+            powerups.forEach(p => ctx.drawImage(powerupImg, p.x - 15, p.y - 15, 30, 30));
+
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: $${(score / 1000000000).toFixed(3)} billion`, 10, 30);
+
+            // Game over/win screens
+            if (gameOver) {
+                ctx.fillStyle = 'red';
+                ctx.font = '50px Arial';
+                ctx.fillText('GAME OVER', 250, 300);
+                ctx.font = '30px Arial';
+                ctx.fillText('Press R to restart', 280, 350);
+            }
+            if (gameWon) {
+                ctx.fillStyle = 'green';
+                ctx.font = '50px Arial';
+                ctx.fillText('YOU WIN!', 280, 300);
+                ctx.font = '30px Arial';
+                ctx.fillText('Press R to restart', 280, 350);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
